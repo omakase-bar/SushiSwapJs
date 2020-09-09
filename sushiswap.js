@@ -268,4 +268,4 @@ class SushiSwap {
     }
 }
 
-export default SushiContracts;
+export default SushiSwap;
