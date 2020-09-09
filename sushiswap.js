@@ -1,19 +1,5 @@
 ﻿import JSBI from "jsbi";
 
-// Add ability to serialize BigInt as JSON
-BigInt.prototype.toJSON = function () {
-    return this.toString();
-}
-
-// Returns a string where the value is divided by 10^divisor and cut off to decimalPlaces decimal places
-// Pass in sep to change the decimal point. No rounding done at the moment.
-BigInt.prototype.decimal = function (divisor, decimalPlaces, sep) {
-    let quotient = this / (10n ** BigInt(divisor));
-    let remainder = (this % (10n ** BigInt(divisor))).toString();
-    remainder = '0'.repeat(Number(divisor) - remainder.length) + remainder;
-    return quotient + (sep || ".") + remainder.substr(0, Number(decimalPlaces));
-}
-
 class SushiContracts {
     constructor(web3) {
         this.abis = {
@@ -70,11 +56,11 @@ class SushiBar {
     }
 
     async poll() {
-        this.sushi = BigInt(await this.contracts.sushi.methods.balanceOf(this.address).call());
-        this.barSushi = BigInt(await this.contracts.sushi.methods.balanceOf(this.contracts.bar._address).call());
-        this.xsushi = BigInt(await this.contracts.bar.methods.balanceOf(this.address).call());
-        this.totalXSushi = BigInt(await this.contracts.bar.methods.totalSupply().call());
-        this.allowance = BigInt(await this.contracts.sushi.methods.allowance(this.address, this.contracts.bar._address).call());
+        this.sushi = JSBI.BigInt(await this.contracts.sushi.methods.balanceOf(this.address).call());
+        this.barSushi = JSBI.BigInt(await this.contracts.sushi.methods.balanceOf(this.contracts.bar._address).call());
+        this.xsushi = JSBI.BigInt(await this.contracts.bar.methods.balanceOf(this.address).call());
+        this.totalXSushi = JSBI.BigInt(await this.contracts.bar.methods.totalSupply().call());
+        this.allowance = JSBI.BigInt(await this.contracts.sushi.methods.allowance(this.address, this.contracts.bar._address).call());
 
         this.sushiStake = this.barSushi * this.xsushi / this.totalXSushi;
     }
@@ -125,24 +111,24 @@ class SushiSwap {
     }
 
     ETHtoCurrency(value) {
-        return value * this.base.eth_rate / BigInt("1000000000000000000");
+        return value * this.base.eth_rate / JSBI.BigInt("1000000000000000000");
     }
 
     async getInfo(address) {
         if (!this.base.loaded) {
             var result = await this.contracts.baseInfo.methods.getInfo().call({ gas: 5000000 });
             this.base = {};
-            this.base.BONUS_MULTIPLIER = BigInt(result[0].BONUS_MULTIPLIER);    // Multiplier during the bonus period
-            this.base.bonusEndBlock = BigInt(result[0].bonusEndBlock);          // Last block of the bonus period
+            this.base.BONUS_MULTIPLIER = JSBI.BigInt(result[0].BONUS_MULTIPLIER);    // Multiplier during the bonus period
+            this.base.bonusEndBlock = JSBI.BigInt(result[0].bonusEndBlock);          // Last block of the bonus period
             this.base.devaddr = result[0].devaddr;                              // Address that receives 10% of SUSHI distributed
             this.base.migrator = result[0].migrator;                            // Address of migration contract
             this.base.owner = result[0].owner;                                  // Address of the owner of the masterchef contract
-            this.base.startBlock = BigInt(result[0].startBlock);                // Block at which SUSHI distribution started
+            this.base.startBlock = JSBI.BigInt(result[0].startBlock);                // Block at which SUSHI distribution started
             this.base.sushi = result[0].sushi;                                  // Address of the sushi token contract
-            this.base.sushiPerBlock = BigInt(result[0].sushiPerBlock);          // Base number of sushi distributed per block
-            this.base.totalAllocPoint = BigInt(result[0].totalAllocPoint);      // Total allocPoints of all pools, this must match adding all the pool allocPoints
+            this.base.sushiPerBlock = JSBI.BigInt(result[0].sushiPerBlock);          // Base number of sushi distributed per block
+            this.base.totalAllocPoint = JSBI.BigInt(result[0].totalAllocPoint);      // Total allocPoints of all pools, this must match adding all the pool allocPoints
 
-            this.base.sushiTotalSupply = BigInt(result[0].sushiTotalSupply);    // Total amount of minted SUSHI
+            this.base.sushiTotalSupply = JSBI.BigInt(result[0].sushiTotalSupply);    // Total amount of minted SUSHI
             this.base.sushiOwner = result[0].sushiOwner;                        // Owner of the SUSHI token contract
 
             this.pools = [];
@@ -152,86 +138,86 @@ class SushiSwap {
                 pool.logo = result[1][i].logo;                                  // The character used as logo for the pool
                 pool.name = result[1][i].name;                                  // The name of the pool, like Tutle Tether
                 pool.lpToken = result[1][i].lpToken;                            // Address of LP token contract. Currently uniswap, soon SushiSwap
-                pool.allocPoint = BigInt(result[1][i].allocPoint);              // How many allocation points assigned to this pool. Share of allocPoints out of total determines sushi/block.
-                pool.lastRewardBlock = BigInt(result[1][i].lastRewardBlock);    // Last block number that SUSHIs accululation occured.
-                pool.accSushiPerShare = BigInt(result[1][i].accSushiPerShare);  // Accumulated SUSHIs per share, times 1e12.
+                pool.allocPoint = JSBI.BigInt(result[1][i].allocPoint);              // How many allocation points assigned to this pool. Share of allocPoints out of total determines sushi/block.
+                pool.lastRewardBlock = JSBI.BigInt(result[1][i].lastRewardBlock);    // Last block number that SUSHIs accululation occured.
+                pool.accSushiPerShare = JSBI.BigInt(result[1][i].accSushiPerShare);  // Accumulated SUSHIs per share, times 1e12.
                 pool.token0 = result[1][i].token0;                              // Token address (first) of the token in the LP pair
                 pool.token1 = result[1][i].token1;                              // Token address (second) of the token in the LP pair
                 pool.token0name = result[1][i].token0name;                      // Name of the first token
                 pool.token1name = result[1][i].token1name;                      // Name of the second token
                 pool.token0symbol = result[1][i].token0symbol;                  // Symbol of the first token
                 pool.token1symbol = result[1][i].token1symbol;                  // Symbol of the second token
-                pool.token0decimals = BigInt(result[1][i].token0decimals);      // Decimals of the first token
-                pool.token1decimals = BigInt(result[1][i].token1decimals);      // Decimals of the scond token
+                pool.token0decimals = JSBI.BigInt(result[1][i].token0decimals);      // Decimals of the first token
+                pool.token1decimals = JSBI.BigInt(result[1][i].token1decimals);      // Decimals of the scond token
                 this.pools.push(pool);
             }
         }
 
         var result = await this.contracts.userInfo.methods.getUserInfo(address, this.currency).call({ gas: 5000000 });
-        this.base.block = BigInt(result[0].block);                              // The block for which this info it valid
-        this.base.timestamp = BigInt(result[0].timestamp);                      // The timestamp of that block?
-        this.base.eth_rate = BigInt(result[0].eth_rate);                        // The 'price' of 1 wrapped Ether expressed in currency token
-        this.base.sushiBalance = BigInt(result[0].sushiBalance);                // User's balance of SUSHI (not pending)
+        this.base.block = JSBI.BigInt(result[0].block);                              // The block for which this info it valid
+        this.base.timestamp = JSBI.BigInt(result[0].timestamp);                      // The timestamp of that block?
+        this.base.eth_rate = JSBI.BigInt(result[0].eth_rate);                        // The 'price' of 1 wrapped Ether expressed in currency token
+        this.base.sushiBalance = JSBI.BigInt(result[0].sushiBalance);                // User's balance of SUSHI (not pending)
         this.base.delegates = result[0].delegates;                              // See smart contract, just included it for completeness
-        this.base.currentVotes = BigInt(result[0].currentVotes);                // See smart contract, just included it for completeness
-        this.base.nonces = BigInt(result[0].nonces);                            // See smart contract, just included it for completeness
-        this.base.pending = BigInt(0);                                          // Total pending SUSHI
-        this.base.multiplier = this.base.block < this.base.bonusEndBlock ? this.base.BONUS_MULTIPLIER : BigInt(1);  // Current base multiplier
+        this.base.currentVotes = JSBI.BigInt(result[0].currentVotes);                // See smart contract, just included it for completeness
+        this.base.nonces = JSBI.BigInt(result[0].nonces);                            // See smart contract, just included it for completeness
+        this.base.pending = JSBI.BigInt(0);                                          // Total pending SUSHI
+        this.base.multiplier = this.base.block < this.base.bonusEndBlock ? this.base.BONUS_MULTIPLIER : JSBI.BigInt(1);  // Current base multiplier
 
-        this.base.sushiRate = BigInt(result[1][this.sushi_pool].token0rate);                 // The amount of SUSHIs in 1 wrapped Ether, times 1e18. This is taken from the ETH/SUSHI pool
-        this.base.sushiValueInETH = BigInt("1000000000000000000") * BigInt("1000000000000000000") / this.base.sushiRate
+        this.base.sushiRate = JSBI.BigInt(result[1][this.sushi_pool].token0rate);                 // The amount of SUSHIs in 1 wrapped Ether, times 1e18. This is taken from the ETH/SUSHI pool
+        this.base.sushiValueInETH = JSBI.BigInt("1000000000000000000") * JSBI.BigInt("1000000000000000000") / this.base.sushiRate
         this.base.sushiValueInCurrency = this.ETHtoCurrency(this.base.sushiValueInETH);
 
         for (i in result[1]) {
             let pool = this.pools[i];
-            pool.lastRewardBlock = BigInt(result[1][i].lastRewardBlock);        // Last block number that SUSHIs accululation occured
-            pool.accSushiPerShare = BigInt(result[1][i].accSushiPerShare);      // Accumulated SUSHIs per share, times 1e12
-            pool.balance = BigInt(result[1][i].balance);                        // User's balance of pool tokens staked in the Masterchef contract
-            pool.totalSupply = BigInt(result[1][i].totalSupply);                // Total balance of pool tokens in the Masterchef contract
-            pool.uniBalance = BigInt(result[1][i].uniBalance);                  // Users's balance of lp tokens not staked
-            pool.uniTotalSupply = BigInt(result[1][i].uniTotalSupply);          // TotalSupply of lp tokens
-            pool.reserve0 = BigInt(result[1][i].reserve0);                      // Reserve of token0 in lp token pool
-            pool.reserve1 = BigInt(result[1][i].reserve1);                      // Reserve of token1 in lp token pool
-            pool.token0rate = BigInt(result[1][i].token0rate);                  // The amount of token0 in 1 wrapped Ether, times 1e18.
-            pool.token1rate = BigInt(result[1][i].token1rate);                  // The amount of token1 in 1 wrapped Ether, times 1e18.
-            pool.rewardDebt = BigInt(result[1][i].rewardDebt);                  // Used internally to calculate pending SUSHI, just use pending.
-            pool.pending = BigInt(result[1][i].pending);                        // Pending SUSHI
+            pool.lastRewardBlock = JSBI.BigInt(result[1][i].lastRewardBlock);        // Last block number that SUSHIs accululation occured
+            pool.accSushiPerShare = JSBI.BigInt(result[1][i].accSushiPerShare);      // Accumulated SUSHIs per share, times 1e12
+            pool.balance = JSBI.BigInt(result[1][i].balance);                        // User's balance of pool tokens staked in the Masterchef contract
+            pool.totalSupply = JSBI.BigInt(result[1][i].totalSupply);                // Total balance of pool tokens in the Masterchef contract
+            pool.uniBalance = JSBI.BigInt(result[1][i].uniBalance);                  // Users's balance of lp tokens not staked
+            pool.uniTotalSupply = JSBI.BigInt(result[1][i].uniTotalSupply);          // TotalSupply of lp tokens
+            pool.reserve0 = JSBI.BigInt(result[1][i].reserve0);                      // Reserve of token0 in lp token pool
+            pool.reserve1 = JSBI.BigInt(result[1][i].reserve1);                      // Reserve of token1 in lp token pool
+            pool.token0rate = JSBI.BigInt(result[1][i].token0rate);                  // The amount of token0 in 1 wrapped Ether, times 1e18.
+            pool.token1rate = JSBI.BigInt(result[1][i].token1rate);                  // The amount of token1 in 1 wrapped Ether, times 1e18.
+            pool.rewardDebt = JSBI.BigInt(result[1][i].rewardDebt);                  // Used internally to calculate pending SUSHI, just use pending.
+            pool.pending = JSBI.BigInt(result[1][i].pending);                        // Pending SUSHI
             this.base.pending += pool.pending;
 
             pool.sushiPerBlock = this.base.sushiPerBlock * this.base.multiplier * pool.allocPoint / this.base.totalAllocPoint;  // SUSHI rewarded to this pool every block
-            pool.sushiPerBlockInETH = pool.sushiPerBlock * BigInt("1000000000000000000") / this.base.sushiRate;                 // SUSHI value rewarded to this pool every block in ETH
-            pool.sushiPerBlockInCurrency = pool.sushiPerBlockInETH * this.base.eth_rate / BigInt("1000000000000000000");        // SUSHI value rewarded to this pool every block in currncy tokens
+            pool.sushiPerBlockInETH = pool.sushiPerBlock * JSBI.BigInt("1000000000000000000") / this.base.sushiRate;                 // SUSHI value rewarded to this pool every block in ETH
+            pool.sushiPerBlockInCurrency = pool.sushiPerBlockInETH * this.base.eth_rate / JSBI.BigInt("1000000000000000000");        // SUSHI value rewarded to this pool every block in currncy tokens
 
-            pool.shareOfUniswapPool = pool.uniTotalSupply ? pool.totalSupply * BigInt("1000000000000000000") / pool.uniTotalSupply : 0n;       // Staked share of all lp tokens. 100% = 1e18.
-            pool.totalStakedToken0 = pool.reserve0 * pool.shareOfUniswapPool / BigInt("1000000000000000000");       // Staked lp tokens contain this much of token0.
-            pool.totalStakedToken1 = pool.reserve1 * pool.shareOfUniswapPool / BigInt("1000000000000000000");       // Staked lp tokens contain this much of token1.
-            pool.valueStakedToken0 = pool.totalStakedToken0 * BigInt("1000000000000000000") / pool.token0rate;      // Value of token0 in staked lp tokens in wrapped Ether
-            pool.valueStakedToken1 = pool.totalStakedToken1 * BigInt("1000000000000000000") / pool.token1rate;      // Value of token1 in staked lp tokens in wrapped Ether
+            pool.shareOfUniswapPool = pool.uniTotalSupply ? pool.totalSupply * JSBI.BigInt("1000000000000000000") / pool.uniTotalSupply : 0n;       // Staked share of all lp tokens. 100% = 1e18.
+            pool.totalStakedToken0 = pool.reserve0 * pool.shareOfUniswapPool / JSBI.BigInt("1000000000000000000");       // Staked lp tokens contain this much of token0.
+            pool.totalStakedToken1 = pool.reserve1 * pool.shareOfUniswapPool / JSBI.BigInt("1000000000000000000");       // Staked lp tokens contain this much of token1.
+            pool.valueStakedToken0 = pool.totalStakedToken0 * JSBI.BigInt("1000000000000000000") / pool.token0rate;      // Value of token0 in staked lp tokens in wrapped Ether
+            pool.valueStakedToken1 = pool.totalStakedToken1 * JSBI.BigInt("1000000000000000000") / pool.token1rate;      // Value of token1 in staked lp tokens in wrapped Ether
             pool.valueStakedToken0InCurrency = this.ETHtoCurrency(pool.valueStakedToken0);
             pool.valueStakedToken1InCurrency = this.ETHtoCurrency(pool.valueStakedToken1);
 
-            pool.shareOfPool = pool.totalSupply ? pool.balance * BigInt("1000000000000000000") / pool.totalSupply : 0n;
-            pool.userStakedToken0 = pool.totalStakedToken0 * pool.shareOfPool / BigInt("1000000000000000000");       // Staked lp tokens contain this much of token0.
-            pool.userStakedToken1 = pool.totalStakedToken1 * pool.shareOfPool / BigInt("1000000000000000000");       // Staked lp tokens contain this much of token1.
-            pool.valueUserStakedToken0 = pool.userStakedToken0 * BigInt("1000000000000000000") / pool.token0rate;      // Value of token0 in staked lp tokens in wrapped Ether
-            pool.valueUserStakedToken1 = pool.userStakedToken1 * BigInt("1000000000000000000") / pool.token1rate;      // Value of token1 in staked lp tokens in wrapped Ether
+            pool.shareOfPool = pool.totalSupply ? pool.balance * JSBI.BigInt("1000000000000000000") / pool.totalSupply : 0n;
+            pool.userStakedToken0 = pool.totalStakedToken0 * pool.shareOfPool / JSBI.BigInt("1000000000000000000");       // Staked lp tokens contain this much of token0.
+            pool.userStakedToken1 = pool.totalStakedToken1 * pool.shareOfPool / JSBI.BigInt("1000000000000000000");       // Staked lp tokens contain this much of token1.
+            pool.valueUserStakedToken0 = pool.userStakedToken0 * JSBI.BigInt("1000000000000000000") / pool.token0rate;      // Value of token0 in staked lp tokens in wrapped Ether
+            pool.valueUserStakedToken1 = pool.userStakedToken1 * JSBI.BigInt("1000000000000000000") / pool.token1rate;      // Value of token1 in staked lp tokens in wrapped Ether
 
-            pool.hourlyROI = (pool.valueStakedToken0 + pool.valueStakedToken1) ? pool.sushiPerBlockInETH * BigInt(276000000) / (pool.valueStakedToken0 + pool.valueStakedToken1) : 0n;   // Hourly ROI
-            pool.dailyROI = (pool.valueStakedToken0 + pool.valueStakedToken1) ? pool.sushiPerBlockInETH * BigInt(6613000000) / (pool.valueStakedToken0 + pool.valueStakedToken1) : 0n;   // Daily ROI
-            pool.monthlyROI = pool.dailyROI * BigInt(30);   // Monthly ROI
-            pool.yearlyROI = pool.dailyROI * BigInt(365);   // Yearly ROI
+            pool.hourlyROI = (pool.valueStakedToken0 + pool.valueStakedToken1) ? pool.sushiPerBlockInETH * JSBI.BigInt(276000000) / (pool.valueStakedToken0 + pool.valueStakedToken1) : 0n;   // Hourly ROI
+            pool.dailyROI = (pool.valueStakedToken0 + pool.valueStakedToken1) ? pool.sushiPerBlockInETH * JSBI.BigInt(6613000000) / (pool.valueStakedToken0 + pool.valueStakedToken1) : 0n;   // Daily ROI
+            pool.monthlyROI = pool.dailyROI * JSBI.BigInt(30);   // Monthly ROI
+            pool.yearlyROI = pool.dailyROI * JSBI.BigInt(365);   // Yearly ROI
 
-            pool.hourlyInCurrency = pool.sushiPerBlockInCurrency * pool.shareOfPool * BigInt(276) / BigInt("1000000000000000000");
-            pool.dailyInCurrency = pool.sushiPerBlockInCurrency * pool.shareOfPool * BigInt(6613) / BigInt("1000000000000000000");
-            pool.monthlyInCurrency = pool.dailyInCurrency * BigInt(30);
-            pool.yearlyInCurrency = pool.dailyInCurrency * BigInt(365);
+            pool.hourlyInCurrency = pool.sushiPerBlockInCurrency * pool.shareOfPool * JSBI.BigInt(276) / JSBI.BigInt("1000000000000000000");
+            pool.dailyInCurrency = pool.sushiPerBlockInCurrency * pool.shareOfPool * JSBI.BigInt(6613) / JSBI.BigInt("1000000000000000000");
+            pool.monthlyInCurrency = pool.dailyInCurrency * JSBI.BigInt(30);
+            pool.yearlyInCurrency = pool.dailyInCurrency * JSBI.BigInt(365);
 
-            pool.valueInCurrency = (pool.valueStakedToken0 + pool.valueStakedToken1) * this.base.eth_rate / BigInt("1000000000000000000"); // Value of lp tokens staked in currency
+            pool.valueInCurrency = (pool.valueStakedToken0 + pool.valueStakedToken1) * this.base.eth_rate / JSBI.BigInt("1000000000000000000"); // Value of lp tokens staked in currency
         }
 
-        this.base.sushiBalanceInETH = this.base.sushiBalance * BigInt("1000000000000000000") / this.base.sushiRate;
+        this.base.sushiBalanceInETH = this.base.sushiBalance * JSBI.BigInt("1000000000000000000") / this.base.sushiRate;
         this.base.sushiBalanceInCurrency = this.ETHtoCurrency(this.base.sushiBalanceInETH);
-        this.base.pendingInETH = this.base.pending * BigInt("1000000000000000000") / this.base.sushiRate;
+        this.base.pendingInETH = this.base.pending * JSBI.BigInt("1000000000000000000") / this.base.sushiRate;
         this.base.pendingInCurrency = this.ETHtoCurrency(this.base.pendingInETH);
 
         this.base.loaded = true;
