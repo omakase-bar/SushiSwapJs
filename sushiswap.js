@@ -1,4 +1,6 @@
-﻿// Add ability to serialize BigInt as JSON
+﻿import JSBI from "jsbi";
+
+// Add ability to serialize BigInt as JSON
 BigInt.prototype.toJSON = function () {
     return this.toString();
 }
@@ -279,3 +281,5 @@ class SushiSwap {
         }
     }
 }
+
+export default SushiContracts;
